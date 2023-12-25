@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String     @id @default(uuid()) @map("_id")
+  name           String?
+  username       String?    @unique
+  bio            String?
+  email          String?    @unique
+  emailVerified  DateTime?
+  image          String?
+  coverImage     String?
+  profileImage   String?
+  hashedPassword String?
+  location       String?
+  points         Int        @default(0)
+  role           String     @default("USER")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  accounts       Account[]
+  Session        Session[]
+  Cart           Cart[]
+  Order          Order[]
+  Wishlist       Wishlist[]
+  Review         Review[]
+  Coupon         Coupon?    @relation(fields: [couponId], references: [id])
+  couponId       String?
+}
+
+model Account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.String
+  access_token      String? @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.String
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String   @unique
+  userId       String   @db.ObjectId
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum OrderStatus {
+  SHIPPED
+  NOT_SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum ProductPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Store {
+  id          String    @id @default(uuid()) @map("_id")
+  name        String
+  description String?
+  imageSrc    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  Products    Product[]
+}
+
+model Product {
+  id          String          @id @default(uuid()) @map("_id")
+  name        String
+  productCode String?         @unique
+  price       String
+  description String?
+  rating      Float           @default(0)
+  imageSrc    String[]
+  Quantity    Int             @default(1)
+  colors      Color[]
+  sizes       Size[]
+  Category    Category?       @relation(fields: [categoryId], references: [id])
+  categoryId  String?
+  status      OrderStatus     @default(NOT_SHIPPED)
+  priority    ProductPriority @default(LOW)
+  Cart        Cart[]
+  OrderItems  OrderItem[]
+  Wishlist    Wishlist[]
+  Review      Review[]
+  coupons     Coupon[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  Store       Store?          @relation(fields: [storeId], references: [id])
+  storeId     String?
+}
+
+model Coupon {
+  id        String   @id @default(uuid()) @map("_id")
+  code      String
+  discount  Float
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  isGeneral Boolean  @default(false)
+  isExpired Boolean  @default(false)
+  appliedBy User[]
+  type      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Color {
+  id        String  @id @default(uuid()) @map("_id")
+  name      String
+  inStock   Boolean @default(true)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Size {
+  id        String  @id @default(uuid()) @map("_id")
+  name      String
+  inStock   Boolean @default(true)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Category {
+  id         String    @id @default(uuid()) @map("_id")
+  title      String
+  subtitle   String
+  imageSrc   String
+  isFeatured Boolean   @default(false)
+  products   Product[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Cart {
+  id        String   @id @default(uuid()) @map("_id")
+  userId    String
+  productId String
+  quantity  Int
+  user      User     @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id         String      @id @default(uuid()) @map("_id")
+  userId     String
+  user       User        @relation(fields: [userId], references: [id])
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  OrderItems OrderItem[]
+  isPaid     Boolean     @default(false)
+  phone      String      @default("")
+  address    String      @default("")
+  status     OrderStatus @default(NOT_SHIPPED)
+}
+
+model OrderItem {
+  id        String   @id @default(uuid()) @map("_id")
+  orderId   String
+  productId String
+  quantity  Int      @default(1)
+  amount    Float
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Wishlist {
+  id        String   @id @default(uuid()) @map("_id")
+  userId    String
+  productId String
+  user      User     @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Review {
+  id        String   @id @default(uuid()) @map("_id")
+  userId    String
+  productId String
+  user      User     @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  rating    Float
+  comment   String?
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
